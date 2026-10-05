@@ -1,0 +1,302 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		C0FFEE000000000000000001 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000000010 /* main.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		C0FFEE000000000000000010 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000000011 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		C0FFEE000000000000000012 /* openOMSI.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = openOMSI.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		C0FFEE000000000000000020 = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE000000000000000021 /* OpenOMSI */,
+				C0FFEE000000000000000022 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000021 /* OpenOMSI */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE000000000000000010 /* main.swift */,
+				C0FFEE000000000000000011 /* Info.plist */,
+			);
+			path = OpenOMSI;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000022 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE000000000000000012 /* openOMSI.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		C0FFEE000000000000000030 /* openOMSI */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C0FFEE000000000000000071 /* Build configuration list for PBXNativeTarget "openOMSI" */;
+			buildPhases = (
+				C0FFEE000000000000000051 /* Build the Rust game (cargo) */,
+				C0FFEE000000000000000050 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = openOMSI;
+			productName = openOMSI;
+			productReference = C0FFEE000000000000000012 /* openOMSI.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		C0FFEE000000000000000040 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					C0FFEE000000000000000030 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+				};
+			};
+			buildConfigurationList = C0FFEE000000000000000070 /* Build configuration list for PBXProject "openOMSI" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = C0FFEE000000000000000020;
+			productRefGroup = C0FFEE000000000000000022 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				C0FFEE000000000000000030 /* openOMSI */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		C0FFEE000000000000000051 /* Build the Rust game (cargo) */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Build the Rust game (cargo)";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# The Rust game as a static library (crates/omsi-app). Needs Rust with the\n# platform's target: `rustup target add aarch64-apple-ios` (device),\n# `aarch64-apple-ios-sim` and `x86_64-apple-ios` (simulator). The library is\n# linked as `-lopenomsi_game` (see OTHER_LDFLAGS in the build settings).\n# (`cargo rustc --crate-type staticlib`, as Android's script does with cdylib.)\nset -e\nexport PATH=\"$HOME/.cargo/bin:$PATH\"\ncd \"$SRCROOT/..\"\ncase \"$PLATFORM_NAME\" in\n  iphonesimulator)\n    case \"$ARCHS\" in\n      *arm64*) target=aarch64-apple-ios-sim ;;\n      *) target=x86_64-apple-ios ;;\n    esac ;;\n  *) target=aarch64-apple-ios ;;\nesac\ncargo rustc --locked --profile ios --target \"$target\" -p omsi-app --lib --crate-type staticlib\nmkdir -p \"$BUILT_PRODUCTS_DIR\"\ncp \"target/$target/ios/libopenomsi_game.a\" \"$BUILT_PRODUCTS_DIR/libopenomsi_game.a\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		C0FFEE000000000000000050 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C0FFEE000000000000000001 /* main.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		C0FFEE000000000000000060 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_BITCODE = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					\"DEBUG=1\",
+					\"$(inherited)\",
+				);
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = \"-Onone\";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		C0FFEE000000000000000061 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = \"dwarf-with-dsym\";
+				ENABLE_BITCODE = NO;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = \"-O\";
+				SWIFT_VERSION = 5.0;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		C0FFEE000000000000000062 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = OpenOMSI/Info.plist;
+				LIBRARY_SEARCH_PATHS = (
+					\"$(inherited)\",
+					\"$(BUILT_PRODUCTS_DIR)\",
+				);
+				MARKETING_VERSION = 0.1.0;
+				OTHER_LDFLAGS = (
+					\"-lopenomsi_game\",
+					\"-ObjC\",
+					\"-framework\",
+					UIKit,
+					\"-framework\",
+					Foundation,
+					\"-framework\",
+					CoreFoundation,
+					\"-framework\",
+					CoreGraphics,
+					\"-framework\",
+					QuartzCore,
+					\"-framework\",
+					Metal,
+					\"-framework\",
+					CoreText,
+					\"-framework\",
+					CoreAudio,
+					\"-framework\",
+					AudioToolbox,
+					\"-framework\",
+					Security,
+					\"-framework\",
+					SystemConfiguration,
+					\"-framework\",
+					AVFoundation,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = org.openomsi.game;
+				PRODUCT_NAME = openOMSI;
+				SUPPORTED_PLATFORMS = \"iphoneos iphonesimulator\";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = \"1,2\";
+			};
+			name = Debug;
+		};
+		C0FFEE000000000000000063 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = OpenOMSI/Info.plist;
+				LIBRARY_SEARCH_PATHS = (
+					\"$(inherited)\",
+					\"$(BUILT_PRODUCTS_DIR)\",
+				);
+				MARKETING_VERSION = 0.1.0;
+				OTHER_LDFLAGS = (
+					\"-lopenomsi_game\",
+					\"-ObjC\",
+					\"-framework\",
+					UIKit,
+					\"-framework\",
+					Foundation,
+					\"-framework\",
+					CoreFoundation,
+					\"-framework\",
+					CoreGraphics,
+					\"-framework\",
+					QuartzCore,
+					\"-framework\",
+					Metal,
+					\"-framework\",
+					CoreText,
+					\"-framework\",
+					CoreAudio,
+					\"-framework\",
+					AudioToolbox,
+					\"-framework\",
+					Security,
+					\"-framework\",
+					SystemConfiguration,
+					\"-framework\",
+					AVFoundation,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = org.openomsi.game;
+				PRODUCT_NAME = openOMSI;
+				SUPPORTED_PLATFORMS = \"iphoneos iphonesimulator\";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = \"1,2\";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		C0FFEE000000000000000070 /* Build configuration list for PBXProject "openOMSI" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C0FFEE000000000000000060 /* Debug */,
+				C0FFEE000000000000000061 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C0FFEE000000000000000071 /* Build configuration list for PBXNativeTarget "openOMSI" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C0FFEE000000000000000062 /* Debug */,
+				C0FFEE000000000000000063 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = C0FFEE000000000000000040 /* Project object */;
+}
