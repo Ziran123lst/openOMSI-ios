@@ -144,14 +144,14 @@
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
 				GCC_PREPROCESSOR_DEFINITIONS = (
-					\"DEBUG=1\",
-					\"$(inherited)\",
+					"DEBUG=1",
+					"$(inherited)",
 				);
 				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
-				SWIFT_OPTIMIZATION_LEVEL = \"-Onone\";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 			};
 			name = Debug;
@@ -164,7 +164,7 @@
 				CLANG_ENABLE_OBJC_ARC = YES;
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				COPY_PHASE_STRIP = NO;
-				DEBUG_INFORMATION_FORMAT = \"dwarf-with-dsym\";
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_BITCODE = NO;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -173,7 +173,7 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
 				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;
-				SWIFT_OPTIMIZATION_LEVEL = \"-O\";
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.0;
 				VALIDATE_PRODUCT = YES;
 			};
@@ -187,43 +187,43 @@
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = OpenOMSI/Info.plist;
 				LIBRARY_SEARCH_PATHS = (
-					\"$(inherited)\",
-					\"$(BUILT_PRODUCTS_DIR)\",
+					"$(inherited)",
+					"$(BUILT_PRODUCTS_DIR)",
 				);
 				MARKETING_VERSION = 0.1.0;
 				OTHER_LDFLAGS = (
-					\"-lopenomsi_game\",
-					\"-ObjC\",
-					\"-framework\",
+					"-lopenomsi_game",
+					"-ObjC",
+					"-framework",
 					UIKit,
-					\"-framework\",
+					"-framework",
 					Foundation,
-					\"-framework\",
+					"-framework",
 					CoreFoundation,
-					\"-framework\",
+					"-framework",
 					CoreGraphics,
-					\"-framework\",
+					"-framework",
 					QuartzCore,
-					\"-framework\",
+					"-framework",
 					Metal,
-					\"-framework\",
+					"-framework",
 					CoreText,
-					\"-framework\",
+					"-framework",
 					CoreAudio,
-					\"-framework\",
+					"-framework",
 					AudioToolbox,
-					\"-framework\",
+					"-framework",
 					Security,
-					\"-framework\",
+					"-framework",
 					SystemConfiguration,
-					\"-framework\",
+					"-framework",
 					AVFoundation,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = org.openomsi.game;
 				PRODUCT_NAME = openOMSI;
-				SUPPORTED_PLATFORMS = \"iphoneos iphonesimulator\";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = \"1,2\";
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
 		};
@@ -235,43 +235,43 @@
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = OpenOMSI/Info.plist;
 				LIBRARY_SEARCH_PATHS = (
-					\"$(inherited)\",
-					\"$(BUILT_PRODUCTS_DIR)\",
+					"$(inherited)",
+					"$(BUILT_PRODUCTS_DIR)",
 				);
 				MARKETING_VERSION = 0.1.0;
 				OTHER_LDFLAGS = (
-					\"-lopenomsi_game\",
-					\"-ObjC\",
-					\"-framework\",
+					"-lopenomsi_game",
+					"-ObjC",
+					"-framework",
 					UIKit,
-					\"-framework\",
+					"-framework",
 					Foundation,
-					\"-framework\",
+					"-framework",
 					CoreFoundation,
-					\"-framework\",
+					"-framework",
 					CoreGraphics,
-					\"-framework\",
+					"-framework",
 					QuartzCore,
-					\"-framework\",
+					"-framework",
 					Metal,
-					\"-framework\",
+					"-framework",
 					CoreText,
-					\"-framework\",
+					"-framework",
 					CoreAudio,
-					\"-framework\",
+					"-framework",
 					AudioToolbox,
-					\"-framework\",
+					"-framework",
 					Security,
-					\"-framework\",
+					"-framework",
 					SystemConfiguration,
-					\"-framework\",
+					"-framework",
 					AVFoundation,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = org.openomsi.game;
 				PRODUCT_NAME = openOMSI;
-				SUPPORTED_PLATFORMS = \"iphoneos iphonesimulator\";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = \"1,2\";
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
