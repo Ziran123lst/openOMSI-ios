@@ -1,0 +1,114 @@
+name: iOS sync & build
+
+# Build openOMSI for iOS, following the official releases:
+#   - `check` (a cheap Ubuntu runner) finds the newest upstream release tag (or the one you
+#     type in) and decides whether it still needs building.
+#   - `build` (a macOS runner, only when a build is needed) clones that upstream tag, applies
+#     the iOS port in `ios/` (overlay + shared-file patch + CJK font), builds the unsigned
+#     .ipa with Xcode, and publishes it on Release `ios-<upstream tag>`.
+# The .ipa is unsigned: install it with LiveContainer, which re-signs it.
+on:
+  schedule:
+    - cron: '23 */6 * * *'   # every 6 hours, off the hour (scheduled runs may be delayed)
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Upstream tag to build (blank = newest release), e.g. v0.1.1541.'
+        type: string
+        default: ''
+      force:
+        description: Rebuild and overwrite the release even if it already exists.
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: ios-sync
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      found: ${{ steps.detect.outputs.found }}
+      utag: ${{ steps.detect.outputs.utag }}
+      iostag: ${{ steps.detect.outputs.iostag }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Determine the upstream release to build
+        id: detect
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+          FORCE: ${{ github.event.inputs.force }}
+        run: |
+          set -eu
+          if [ -n "$INPUT_TAG" ]; then
+            UTAG="$INPUT_TAG"
+          else
+            UTAG=$(git ls-remote --tags https://github.com/openOMSI-Project/openOMSI.git \
+              | grep -v '\^{}' \
+              | sed 's|.*refs/tags/||; s|[[:space:]]||g' \
+              | sort -V | tail -1)
+          fi
+          [ -n "$UTAG" ] || { echo "no upstream tag found"; echo "found=false" >> "$GITHUB_OUTPUT"; exit 0; }
+          IOSTAG="ios-$UTAG"
+          echo "utag=$UTAG"     >> "$GITHUB_OUTPUT"
+          echo "iostag=$IOSTAG" >> "$GITHUB_OUTPUT"
+          echo "target: $UTAG -> $IOSTAG"
+          if gh release view "$IOSTAG" >/dev/null 2>&1 && [ "$FORCE" != "true" ]; then
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "$IOSTAG already published; nothing to do"
+          else
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    needs: check
+    if: needs.check.outputs.found == 'true'
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Clone the upstream release and apply the iOS port
+        env:
+          UTAG: ${{ needs.check.outputs.utag }}
+        run: |
+          set -eu
+          git clone --depth 1 --branch "$UTAG" \
+            https://github.com/openOMSI-Project/openOMSI.git upstream
+          cp -R ios upstream/ios
+          chmod +x upstream/ios/sync.sh
+          (cd upstream && sh ios/sync.sh)
+      - name: Add the iOS Rust target / select Xcode
+        run: |
+          sudo xcode-select -s /Applications/Xcode_*.app/Contents/Developer || true
+          rustup target add aarch64-apple-ios
+          rustc --version; xcodebuild -version
+      - name: Build the unsigned .ipa
+        working-directory: upstream
+        run: |
+          chmod +x scripts/build-ios.sh scripts/ios-make-ipa.sh
+          OPENOMSI_VERSION="${{ needs.check.outputs.utag }}" sh scripts/ios-make-ipa.sh
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          UTAG: ${{ needs.check.outputs.utag }}
+          IOSTAG: ${{ needs.check.outputs.iostag }}
+        run: |
+          set -eu
+          IPA="upstream/dist/ios/openOMSI-${UTAG}-ios-arm64.ipa"
+          [ -f "$IPA" ] || { echo "missing $IPA"; ls -l upstream/dist/ios; exit 1; }
+          NOTES="Unofficial iOS build of openOMSI ${UTAG}, produced automatically.
+
+          - **Unsigned** .ipa: install with **LiveContainer** (it re-signs with your own certificate).
+          - Import the OMSI 2 content folder via the Files app; see \`docs/IOS.md\`.
+          - Upstream release: https://github.com/openOMSI-Project/openOMSI/releases/tag/${UTAG}"
+          if gh release view "$IOSTAG" >/dev/null 2>&1; then
+            gh release upload "$IOSTAG" "$IPA" --clobber
+            gh release edit "$IOSTAG" --notes "$NOTES"
+          else
+            gh release create "$IOSTAG" "$IPA" --title "openOMSI for iOS ($UTAG)" --notes "$NOTES"
+          fi
