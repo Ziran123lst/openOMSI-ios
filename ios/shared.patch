@@ -1,5 +1,5 @@
 diff --git a/Cargo.lock b/Cargo.lock
-index bfa3b09..acc174d 100644
+index 9e85bd4..885251a 100644
 --- a/Cargo.lock
 +++ b/Cargo.lock
 @@ -995,8 +995,6 @@ dependencies = [
@@ -7,31 +7,25 @@ index bfa3b09..acc174d 100644
  name = "crc-fast"
  version = "1.10.0"
 -source = "registry+https://github.com/rust-lang/crates.io-index"
--checksum = "e75b2483e97a5a7da73ac68a05b629f9c53cff58d8ed1c77866079e18b00dba5"
+-checksum = "e75b2483e97a5a7da73ac68a05b629f9c53cff58d8ed1c77849d39b0d07a01ffbd"
  dependencies = [
   "digest 0.10.7",
   "spin",
 diff --git a/Cargo.toml b/Cargo.toml
-index f363a85..5ec2f52 100644
+index 1251f82..ae1dfa2 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
-@@ -25,6 +25,12 @@ members = [
- ]
- exclude = ["launcher/src-tauri"]
- 
-+# (crc-fast builds a cdylib for wasm that this tree never uses; the iOS cross-linker on
-+# this Linux box cannot link that cdylib (-exported_symbols_list), so the patch builds only
-+# the rlib openOMSI needs.)
-+[patch.crates-io]
-+crc-fast = { path = "vendor/crc-fast" }
-+
- [workspace.package]
- version = "0.1.0"
- edition = "2021"
-@@ -66,3 +72,14 @@ opt-level = 1
- inherits = "release"
+@@ -67,5 +67,21 @@ inherits = "release"
  debug = 0
  strip = "debuginfo"
+ 
++# crates patched for this tree:
++#  - gpu-allocator: the upstream fork used by the project;
++#  - crc-fast: build only the rlib openOMSI needs (its cdylib for wasm is not used, and the
++#    iOS cross-linker on a Linux box cannot link that cdylib, -exported_symbols_list).
+ [patch.crates-io]
+ gpu-allocator = { git = "https://github.com/openOMSI-Project/gpu-allocator", rev = "6ad8a7eeb9c3e1dcd65656f718c593a0a1a3915d" }
++crc-fast = { path = "vendor/crc-fast" }
 +
 +# the iOS build (scripts/build-ios.sh): like Android, without debug info
 +[profile.ios]
@@ -44,10 +38,10 @@ index f363a85..5ec2f52 100644
 +lto = false
 +codegen-units = 1
 diff --git a/README.md b/README.md
-index d73fb7a..512c8b3 100644
+index 7a046c1..37c7c12 100644
 --- a/README.md
 +++ b/README.md
-@@ -41,6 +41,7 @@ Every commit to `main` is built by GitHub Actions and published on the
+@@ -42,6 +42,7 @@ Every commit to `main` is built by GitHub Actions and published on the
  | macOS (Apple silicon / Intel) | `openOMSI-<version>-macos-arm64.zip` / `-macos-x64.zip` - open `openOMSI.app` |
  | Linux x64 / ARM64 | `openOMSI-<version>-linux-x64.zip` / `-linux-arm64.zip` - run `openomsi` |
  | Android (arm64, 8.0+) | `openOMSI-<version>-android-arm64.apk` - see [docs/ANDROID.md](docs/ANDROID.md) |
@@ -55,7 +49,7 @@ index d73fb7a..512c8b3 100644
  | Dedicated server | `openOMSI-<version>-server-linux-x64.zip` (also `-linux-arm64`, `-windows-x64`, `-windows-arm64`) - see [docs/SERVER.md](docs/SERVER.md) |
  
  Start the game, point the launcher to your OMSI 2 folder once, pick a map, a bus and a duty,
-@@ -124,6 +125,7 @@ pages live in [`docs/`](docs):
+@@ -125,6 +126,7 @@ pages live in [`docs/`](docs):
  | [User guide](docs/USER_GUIDE.md) | running, controls, launcher, settings, mods, LAN play, debug switches |
  | [Virtual reality](docs/VR.md) | OpenXR setup, VR settings and controls on Windows |
  | [Android](docs/ANDROID.md) | the mobile version: install, touch controls, building the APK |
@@ -91,10 +85,10 @@ index 0706261..9846975 100644
  rfd = "0.15"
  
 diff --git a/crates/omsi-app/src/app.rs b/crates/omsi-app/src/app.rs
-index 760203c..7ceb5c5 100644
+index 689d11d..8dfd05d 100644
 --- a/crates/omsi-app/src/app.rs
 +++ b/crates/omsi-app/src/app.rs
-@@ -347,6 +347,9 @@ impl App {
+@@ -370,6 +370,9 @@ impl App {
              // back from the background (a phone): the window's surface is made again
              if self.surface.is_none() {
                  if let Some(r) = self.renderer.as_ref() {
@@ -104,7 +98,7 @@ index 760203c..7ceb5c5 100644
                      let size = window.inner_size();
                      let vsync = self.settings.vsync && !self.vr_active();
                      self.surface = SurfaceState::new_with(&self.instance, window.clone(), r, size.width.max(1), size.height.max(1), vsync).ok();
-@@ -476,6 +479,9 @@ impl App {
+@@ -499,6 +502,9 @@ impl App {
          }
          crate::lights::load_smoke_texture(&mut renderer, &self.args.root);
          crate::lights::set_corona_root(&self.args.root);
@@ -115,10 +109,10 @@ index 760203c..7ceb5c5 100644
          let surface = match SurfaceState::new_with(
              &self.instance,
 diff --git a/crates/omsi-app/src/app_events.rs b/crates/omsi-app/src/app_events.rs
-index eceb577..0474111 100644
+index 83809e8..9d82821 100644
 --- a/crates/omsi-app/src/app_events.rs
 +++ b/crates/omsi-app/src/app_events.rs
-@@ -1378,8 +1378,9 @@ impl ApplicationHandler for App {
+@@ -1469,8 +1469,9 @@ impl ApplicationHandler for App {
                      }
                      self.service_msg = Some(("On foot: Esc menu, Place a vehicle..., then G at its driver's door to drive it".into(), 8.0));
                  }
@@ -131,10 +125,10 @@ index eceb577..0474111 100644
                      self.discord_t -= dt;
                      if self.discord_t <= 0.0 {
 diff --git a/crates/omsi-app/src/input_script.rs b/crates/omsi-app/src/input_script.rs
-index 260886b..2120589 100644
+index 728b569..d32e874 100644
 --- a/crates/omsi-app/src/input_script.rs
 +++ b/crates/omsi-app/src/input_script.rs
-@@ -4261,7 +4261,7 @@ impl crate::App {
+@@ -4447,7 +4447,7 @@ impl crate::App {
              self.service_msg = Some(("No server code: not in a LAN session or on a server".into(), 3.0));
              return;
          };
@@ -143,7 +137,7 @@ index 260886b..2120589 100644
          {
              thread_local! {
                  // (kept alive: on X11 the text is gone when the clipboard is dropped)
-@@ -4276,7 +4276,7 @@ impl crate::App {
+@@ -4462,7 +4462,7 @@ impl crate::App {
              });
              self.service_msg = Some(if ok { ("Server code copied".into(), 3.0) } else { (format!("{}: {code}", omsi_ui::tr("Server code")), 8.0) });
          }
@@ -153,7 +147,7 @@ index 260886b..2120589 100644
              self.service_msg = Some((format!("{}: {code}", omsi_ui::tr("Server code")), 8.0));
          }
 diff --git a/crates/omsi-app/src/launcher/mod.rs b/crates/omsi-app/src/launcher/mod.rs
-index 81948bd..32be87c 100644
+index 746ead0..db7c43a 100644
 --- a/crates/omsi-app/src/launcher/mod.rs
 +++ b/crates/omsi-app/src/launcher/mod.rs
 @@ -65,15 +65,15 @@ const PAGES: [(Page, &str, &str); 10] = [
@@ -165,7 +159,7 @@ index 81948bd..32be87c 100644
  type Clipboard = arboard::Clipboard;
  
  /// A phone: text copied in the launcher can be pasted in it (the system's clipboard is
--/// Java's.
+-/// Java's).
 -#[cfg(target_os = "android")]
 +/// Java's or the app's own - arboard has no iOS backend).
 +#[cfg(any(target_os = "android", target_os = "ios"))]
@@ -259,7 +253,7 @@ index 81948bd..32be87c 100644
                  if let (Some(sf), Some(r)) = (self.surface.as_mut(), self.renderer.as_ref()) {
                      sf.resize(r, s.width, s.height);
                  }
-@@ -785,6 +816,9 @@ impl Launcher {
+@@ -791,6 +822,9 @@ impl Launcher {
          self.last = now;
          let (Some(window), Some(_)) = (self.window.clone(), self.surface.as_ref()) else { return };
          let scale = self.ui_scale();
@@ -269,7 +263,7 @@ index 81948bd..32be87c 100644
          let phys = window.inner_size();
          let (pw, ph) = (phys.width.max(1), phys.height.max(1));
          let size = Vec2::new(pw as f32, ph as f32) / scale;
-@@ -908,6 +942,10 @@ impl Launcher {
+@@ -914,6 +948,10 @@ impl Launcher {
          }
          window.pre_present_notify();
          frame.present();
@@ -281,10 +275,11 @@ index 81948bd..32be87c 100644
      }
  
 diff --git a/crates/omsi-app/src/lib.rs b/crates/omsi-app/src/lib.rs
-index 2d99b82..72fb2ce 100644
+index a1e71c5..e1eac55 100644
 --- a/crates/omsi-app/src/lib.rs
 +++ b/crates/omsi-app/src/lib.rs
 @@ -5,8 +5,9 @@
+ //! omsi --root ... --map ... --offscreen out.png --size 1600x900            # PNG
  //! ```
  //!
 -//! The game is this library; `main.rs` calls [`run`], and on Android the NativeActivity
@@ -295,7 +290,7 @@ index 2d99b82..72fb2ce 100644
  //! window of one process.
  
  mod admin;
-@@ -21,6 +22,8 @@ mod openxr;
+@@ -22,6 +23,8 @@ mod openxr;
  mod mac_hid;
  #[cfg(target_os = "android")]
  mod android;
@@ -325,12 +320,12 @@ index 774e45e..040c4d1 100644
 +pub const MOBILE: bool = cfg!(any(target_os = "android", target_os = "ios"));
  
  /// The session asked to end (a phone: back to the launcher, the program runs on).
- static LEAVE: AtomicBool = AtomicBool::new(false);
+ static LEAVE: AtomicBool = Atomic::new(false);
 diff --git a/crates/omsi-app/src/startup.rs b/crates/omsi-app/src/startup.rs
 index c6d0853..842314a 100644
 --- a/crates/omsi-app/src/startup.rs
 +++ b/crates/omsi-app/src/startup.rs
-@@ -187,7 +187,10 @@ pub(crate) fn graphics_instance() -> Result<wgpu::Instance> {
+@@ -187,7 +187,10 @@ pub(crate) fn graphics_instance() -> wgpu::Instance {
  /// (`graphics_api`) or OMSI_BACKEND=vulkan|dx12|gl puts one first: a driver whose Vulkan
  /// misbehaves is got round.
  pub(crate) fn backend_order() -> Vec<wgpu::Backends> {
@@ -343,10 +338,10 @@ index c6d0853..842314a 100644
      }
      let settings = crate::settings::Settings::load();
 diff --git a/crates/omsi-app/src/updater.rs b/crates/omsi-app/src/updater.rs
-index e03d8a5..a4d98e4 100644
+index 204b8ab..2905cd8 100644
 --- a/crates/omsi-app/src/updater.rs
 +++ b/crates/omsi-app/src/updater.rs
-@@ -103,6 +103,14 @@ impl Updater {
+@@ -124,6 +124,14 @@ impl Updater {
      /// Ask GitHub for the latest release (in the background).
      pub fn check(&mut self) {
          self.checked_once = true;
@@ -358,10 +353,10 @@ index e03d8a5..a4d98e4 100644
 +            log::info!("update check: updates on iOS are installed from the App Store");
 +            return;
 +        }
-         if matches!(self.status(), Status::Checking | Status::Downloading { .. } | Status::Installing(_) | Status::WaitingForInstaller(_) | Status::Restarting(_)) {
+         self.last_check = Some(std::time::Instant::now());
+         if matches!(self.status(), Status::Checking | Status::Downloading { .. } | Status::Downloaded(_) | Status::Installing(_) | Status::WaitingForInstaller(_) | Status::Restarting(_)) {
              return;
-         }
-@@ -125,6 +133,12 @@ impl Updater {
+@@ -147,6 +155,12 @@ impl Updater {
  
      /// Download and install `r` (in the background).
      pub fn install(&mut self, r: Release) {
@@ -388,20 +383,20 @@ index e41b9b7..0fdc1ce 100644
 +[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
  rfd = "0.15"
 diff --git a/crates/omsi-launcher-core/src/lib.rs b/crates/omsi-launcher-core/src/lib.rs
-index 1919044..0619508 100644
+index 8e6c51c..f726713 100644
 --- a/crates/omsi-launcher-core/src/lib.rs
 +++ b/crates/omsi-launcher-core/src/lib.rs
-@@ -2540,7 +2540,7 @@ pub fn cleanup() {
+@@ -2565,7 +2565,7 @@ pub fn cleanup() {
  /// Native folder / file picker (Finder, Explorer, the GTK dialog) for a mod. Must run on
- /// the main thread. (None on a phone: the launcher browses its storage itself there.)
+ /// the main thread. (None on a phone: the launcher browses the storage itself there.)
  pub fn pick_mod(zip: bool) -> Option<PathBuf> {
 -    #[cfg(not(target_os = "android"))]
 +    #[cfg(not(any(target_os = "android", target_os = "ios")))]
      {
          if zip {
              rfd::FileDialog::new().set_title("Choose a mod archive").add_filter("Mod archive", &["zip", "7z", "rar"]).pick_file()
-@@ -2548,7 +2548,7 @@ pub fn pick_mod(zip: bool) {
-             rfd::FileDialog::new().set_title("choose the mod folder").pick_folder()
+@@ -2573,7 +2573,7 @@ pub fn pick_mod(zip: bool) {
+             rfd::FileDialog::new().set_title("Choose the mod folder").pick_folder()
          }
      }
 -    #[cfg(target_os = "android")]
@@ -409,7 +404,7 @@ index 1919044..0619508 100644
      {
          let _ = zip;
          None
-@@ -2557,11 +2557,11 @@ pub fn pick_mod(zip: bool) {
+@@ -2582,11 +2582,11 @@ pub fn pick_mod(zip: bool) {
  
  /// Folder picker (Setup: the OMSI 2 folder).
  pub fn pick_folder(title: &str) -> Option<PathBuf> {
@@ -423,7 +418,7 @@ index 1919044..0619508 100644
      {
          let _ = title;
          None
-@@ -2570,11 +2570,11 @@ pub fn pick_folder(title: &str) {
+@@ -2595,11 +2595,11 @@ pub fn pick_folder(title: &str) {
  
  /// File picker (Setup: the game program).
  pub fn pick_file(title: &str) -> Option<PathBuf> {
@@ -437,7 +432,7 @@ index 1919044..0619508 100644
      {
          let _ = title;
          None
-@@ -2592,7 +2592,7 @@ pub fn take_in_process_launch() -> Option<Vec<String>> {
+@@ -2617,7 +2617,7 @@ pub fn take_in_process_launch() -> Option<Vec<String>> {
  }
  
  /// Whether games run inside the launcher's own process (a phone).
@@ -465,7 +460,7 @@ index cb75f03..0342042 100644
  pub enum Weight {
 @@ -157,6 +163,12 @@ fn fallback_fonts() -> &'static [(&'static str, FontVec)] {
              ("", "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
-         };
+         ];
          let mut out = Vec::new();
 +        // The bundled CJK font comes first on iOS (since iOS 18 there is no readable system
 +        // Chinese font by path); it is marked for the Chinese interface language.
@@ -490,8 +485,9 @@ index 5da9e85..837b1a6 100644
  ## Build
  
 @@ -31,6 +33,7 @@ there.
+ | Windows, from a Mac | `scripts/build-windows-cross.sh` (needs `brew install mingw-w64") | `dist/windows/` |
  | Linux | `scripts/build-linux.sh` | `dist/linux/openomsi`, `openomsi-launcher`, `.desktop` file |
  | Android | `scripts/build-android.sh` | `dist/android/openOMSI-<version>.apk` |
 +| iOS | `scripts/build-ios.sh` | `dist/ios/openOMSI-<version>.app` (unsigned) |
  | Dedicated server | `scripts/build-server.sh` [folder] | `dist/server/` |
- | 32-bit plugin host | `scripts/build-plugin-host.sh` | `dist/omsi-plugin-host.sh` |
+ | 32-bit plugin host | `scripts/build-plugin-host.sh` | `dist/omsi-plugin-host32.exe` (see [PLUGINS.md](PLUGINS.md)) |
