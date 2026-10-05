@@ -1,0 +1,89 @@
+diff --git a/crates/omsi-launcher-core/src/lib.rs b/crates/omsi-launcher-core/src/lib.rs
+index 8e6c51c..f726713 100644
+--- a/crates/omsi-launcher-core/src/lib.rs
++++ b/crates/omsi-launcher-core/src/lib.rs
+@@ -2565,7 +2565,7 @@ pub fn cleanup() {
+ /// Native folder / file picker (Finder, Explorer, the GTK dialog) for a mod. Must run on
+ /// the main thread. (None on a phone: the launcher browses the storage itself there.)
+ pub fn pick_mod(zip: bool) -> Option<PathBuf> {
+-    #[cfg(not(target_os = "android"))]
++    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+     {
+         if zip {
+             rfd::FileDialog::new().set_title("Choose a mod archive").add_filter("Mod archive", &["zip", "7z", "rar"]).pick_file()
+@@ -2573,7 +2573,7 @@ pub fn pick_mod(zip: bool) {
+             rfd::FileDialog::new().set_title("Choose the mod folder").pick_folder()
+         }
+     }
+-    #[cfg(target_os = "android")]
++    #[cfg(any(target_os = "android", target_os = "ios"))]
+     {
+         let _ = zip;
+         None
+@@ -2582,11 +2582,11 @@ pub fn pick_mod(zip: bool) {
+ 
+ /// Folder picker (Setup: the OMSI 2 folder).
+ pub fn pick_folder(title: &str) -> Option<PathBuf> {
+-    #[cfg(not(target_os = "android"))]
++    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+     {
+         rfd::FileDialog::new().set_title(title).pick_folder()
+     }
+-    #[cfg(target_os = "android")]
++    #[cfg(any(target_os = "android", target_os = "ios"))]
+     {
+         let _ = title;
+         None
+@@ -2595,11 +2595,11 @@ pub fn pick_folder(title: &str) {
+ 
+ /// File picker (Setup: the game program).
+ pub fn pick_file(title: &str) -> Option<PathBuf> {
+-    #[cfg(not(target_os = "android"))]
++    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+     {
+         rfd::FileDialog::new().set_title(title).pick_file()
+     }
+-    #[cfg(target_os = "android")]
++    #[cfg(any(target_os = "android", target_os = "ios"))]
+     {
+         let _ = title;
+         None
+@@ -2617,7 +2617,7 @@ pub fn take_in_process_launch() -> Option<PathBuf> {
+ }
+ 
+ /// Whether games run inside the launcher's own process (a phone).
+-pub const IN_PROCESS_GAMES: bool = cfg!(target_os = "android");
++pub const IN_PROCESS_GAMES: bool = cfg!(any(target_os = "android", target_os = "ios"));
+ 
+ pub use instances::{list as list_instances, log_tail, stop as stop_instance, Instance};
+ 
+diff --git a/crates/omsi-ui/src/text.rs b/crates/omsi-ui/src/text.rs
+index cb75f03..0342042 100644
+--- a/crates/omsi-ui/src/text.rs
++++ b/crates/omsi-ui/src/text.rs
+@@ -3,6 +3,12 @@
+ use ab_glyph::{Font, FontVec, PxScale, ScaleFont, VariableFont};
+ 
+ const ROBOTO: &[u8] = include_bytes!("../../../assets/fonts/Roboto-VariableFont_wdth,wght.ttf");
++// A CJK font bundled for iOS. Since iOS 18 the system's Chinese font (PingFangUI) is private
++// and no longer reachable by a path or the normal font APIs, so the app ships Noto Sans CJK
++// (SIL OFL) for the scripts Roboto lacks - it covers Simplified and Traditional Chinese, and
++// Japanese/Korean characters as well.
++#[cfg(target_os = "ios")]
++const NOTO_CJK: &[u8] = include_bytes!("../../../assets/fonts/NotoSansCJKsc-Regular.otf");
+ 
+ #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+ pub enum Weight {
+@@ -157,6 +163,12 @@ fn fallback_fonts() -> &'static [(&'static str, FontVec)] {
+             ("", "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
+         ];
+         let mut out = Vec::new();
++        // The bundled CJK font comes first on iOS (since iOS 18 there is no readable system
++        // Chinese font by path); it is marked for the Chinese interface language.
++        #[cfg(target_os = "ios")]
++        if let Ok(f) = FontVec::try_from_vec(NOTO_CJK.to_vec()) {
++            out.push(("zh", f));
++        }
+         for (lang, p) in PATHS {
+             let Ok(data) = std::fs::read(p) else { continue };
+             if let Ok(f) = FontVec::try_from_vec_and_index(data, 0) {
