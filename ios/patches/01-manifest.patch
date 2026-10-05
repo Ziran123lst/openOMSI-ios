@@ -1,0 +1,39 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index 9e85bd4..885251a 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -995,8 +995,6 @@ dependencies = [
+ [[package]]
+ name = "crc-fast"
+ version = "1.10.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "e75b2483e97a5a7da73ac68a05b629f9c53cff58d8ed1c77866079e18b00dba5"
+ dependencies = [
+  "digest 0.10.7",
+  "spin",
+diff --git a/Cargo.toml b/Cargo.toml
+index 1251f82..ae1dfa2 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -67,5 +67,21 @@ inherits = "release"
+ debug = 0
+ strip = "debuginfo"
+ 
++# crates patched for this tree:
++#  - gpu-allocator: the upstream fork used by the project;
++#  - crc-fast: build only the rlib openOMSI needs (its cdylib for wasm is not used, and the
++#    iOS cross-linker on a Linux box cannot link that cdylib, -exported_symbols_list).
+ [patch.crates-io]
+ gpu-allocator = { git = "https://github.com/openOMSI-Project/gpu-allocator", rev = "6ad8a7eeb9c3e1dcd65656f718c593a0a1a3915d" }
++crc-fast = { path = "vendor/crc-fast" }
++
++# the iOS build (scripts/build-ios.sh): like Android, without debug info
++[profile.ios]
++inherits = "release"
++debug = 0
++strip = "debuginfo"
++# the linker and the phone's code cache are both finite: no LTO (the .a keeps the
++# per-crate optimization, enough for a game that streams content at runtime), and a single
++# codegen unit keeps the peak memory of the big crates low enough for 4 GB build boxes
++lto = false
++codegen-units = 1
