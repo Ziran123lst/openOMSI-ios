@@ -94,6 +94,9 @@ small on purpose.
 
 ## Releases
 
-A release job for iOS (`ios` job of `.github/workflows/release.yml`) builds the unsigned
-`.app` and attaches it as `openOMSI-<version>-ios-arm64.zip`; the App Store release
+The `.github/workflows/ios-sync.yml` workflow (in this iOS repository) follows the official
+releases: when openOMSI publishes a new release, it clones that tag, applies the iOS port
+(overlay + numbered `patches/`, and the bundled CJK font), builds the unsigned `.ipa` with
+Xcode, and publishes it on the Release `ios-<upstream tag>`. The `.ipa` is unsigned and
+installed with LiveContainer (it re-signs with your own certificate). The App Store release
 itself is a manual step (signing, archiving, App Store Connect), not in the CI.
