@@ -76,5 +76,5 @@ index 5da9e85..837b1a6 100644
  | Linux | `scripts/build-linux.sh` | `dist/linux/openomsi`, `openomsi-launcher`, `.desktop` file |
  | Android | `scripts/build-android.sh` | `dist/android/openOMSI-<version>.apk` |
 +| iOS | `scripts/build-ios.sh` | `dist/ios/openOMSI-<version>.app` (unsigned) |
- | Dedicated server | `scripts/build-server.sh` [folder] | `dist/server/` |
+ | Dedicated server | `scripts/build-server.sh [folder]` | `dist/server/` with `start.sh` |
  | 32-bit plugin host | `scripts/build-plugin-host.sh` | `dist/omsi-plugin-host32.exe` (see [PLUGINS.md](PLUGINS.md)) |
