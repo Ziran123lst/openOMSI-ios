@@ -1,19 +1,22 @@
 #!/bin/sh
 # Apply the iOS port onto a fresh upstream checkout (the current working directory):
-# copy the iOS-only overlay files, apply the shared-file patch, and fetch the bundled CJK
-# font. This lets the port follow any upstream release tag without a shared git history.
+# copy the iOS-only overlay files, apply the shared-file patches (patches/*.patch, in name
+# order), and fetch the bundled CJK font and the patched crc-fast. This lets the port follow
+# any upstream release tag without a shared git history.
 set -eu
 HERE="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 
 # 1) iOS-only files (new files the upstream tree does not have)
 cp -R "$HERE/overlay/." .
 
-# 2) edits to files shared with upstream
-if [ -d .git ]; then
-  git apply --whitespace=nowarn "$HERE/shared.patch"
-else
-  patch -p1 --forward < "$HERE/shared.patch"
-fi
+# 2) edits to files shared with upstream (kept as small numbered patches, applied in order)
+for p in "$HERE/patches/"*.patch; do
+  if [ -d .git ]; then
+    git apply --whitespace=nowarn "$p"
+  else
+    patch -p1 --forward < "$p"
+  fi
+done
 
 # 3) the CJK font shipped with the app (kept out of this repo to stay small); since iOS 18
 # the system Chinese font is private, so Noto Sans CJK (OFL) is bundled for Chinese text
@@ -37,4 +40,4 @@ if [ ! -f vendor/crc-fast/Cargo.toml ]; then
     vendor/crc-fast/Cargo.toml
 fi
 
-echo "iOS port applied ($(grep -c . "$HERE/shared.patch" 2>/dev/null || echo 0) shared-file lines)"
+echo "iOS port applied ($(cat "$HERE/patches/"*.patch | grep -c . || echo 0) shared-file lines)"
