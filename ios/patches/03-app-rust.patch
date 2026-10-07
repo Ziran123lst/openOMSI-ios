@@ -159,9 +159,7 @@ index 746ead0..db7c43a 100644
          self.window = Some(window);
          self.surface = Some(surface);
          self.renderer = Some(renderer);
-@@ -435,6 +465,7 @@ impl ApplicationHandler for Launcher {
-                 if o { self.pages.pads.cancel_feedback_test(); }
-             }
+@@ -437,4 +467,5 @@ impl ApplicationHandler for Launcher {
              WindowEvent::Resized(s) => {
 +                // winit's Resized size is the full window bounds (not the safe area) on iOS
                  if let (Some(sf), Some(r)) = (self.surface.as_mut(), self.renderer.as_ref()) {
@@ -204,8 +202,7 @@ index a1e71c5..e1eac55 100644
  //! window of one process.
  
  mod admin;
-@@ -22,6 +23,8 @@ mod openxr;
- mod mac_hid;
+@@ -23,5 +24,7 @@
  #[cfg(target_os = "android")]
  mod android;
 +#[cfg(target_os = "ios")]

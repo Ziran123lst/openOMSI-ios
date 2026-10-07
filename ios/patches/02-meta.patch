@@ -35,7 +35,7 @@ index 0706261..9846975 100644
  path = "src/lib.rs"
 @@ -61,8 +63,9 @@ rust-i18n = "4"
  # updates: the release archives from GitHub
- zip = { version = "2", default-features = false, features = ["deflate"] }
+ zip.workspace = true
  
 -# the desktop's clipboard and file dialogs (a phone has neither in this form)
 -[target.'cfg(not(target_os = "android"))'.dependencies]
@@ -43,7 +43,7 @@ index 0706261..9846975 100644
 +# rfd have no iOS backend - iOS uses the in-app clipboard, see launcher/mod.rs)
 +[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
  arboard = { version = "3", default-features = false }
- rfd = "0.15"
+ rfd.workspace = true
  
 diff --git a/crates/omsi-launcher-core/Cargo.toml b/crates/omsi-launcher-core/Cargo.toml
 index e41b9b7..0fdc1ce 100644
@@ -51,13 +51,13 @@ index e41b9b7..0fdc1ce 100644
 +++ b/crates/omsi-launcher-core/Cargo.toml
 @@ -38,5 +38,7 @@ libc = "0.2"
  [target.'cfg(windows)'.dependencies]
- windows = { version = "0.62", features = ["Win32_Foundation", "Win32_System_SystemInformation"] }
+ windows = { workspace = true, features = ["Win32_Foundation", "Win32_System_SystemInformation"] }
  
 -[target.'cfg(not(target_os = "android"))'.dependencies]
 +# the native folder / file pickers of the desktop (a phone browses its storage in the
 +# launcher; rfd has no iOS backend)
 +[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
- rfd = "0.15"
+ rfd.workspace = true
 diff --git a/docs/BUILDING.md b/docs/BUILDING.md
 index 5da9e85..837b1a6 100644
 --- a/docs/BUILDING.md

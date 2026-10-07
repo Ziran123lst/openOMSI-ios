@@ -15,10 +15,7 @@ diff --git a/Cargo.toml b/Cargo.toml
 index 1251f82..ae1dfa2 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
-@@ -67,5 +67,21 @@ inherits = "release"
- debug = 0
- strip = "debuginfo"
- 
+@@ -70,2 +70,18 @@
 +# crates patched for this tree:
 +#  - gpu-allocator: the upstream fork used by the project;
 +#  - crc-fast: build only the rlib openOMSI needs (its cdylib for wasm is not used, and the
