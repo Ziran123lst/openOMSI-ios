@@ -1,27 +1,12 @@
 name: iOS sync & build
-# Build every new upstream release for iOS:
-#   - `check` reads the newest published upstream releases and picks every one that is
-#     newer than the last one already built here (an `ios-<tag>` release exists = built).
-#   - `build` builds each picked tag in parallel and publishes the unsigned .ipa,
-#     replacing the existing asset when the release already exists.
-# The .ipa is unsigned: install it with LiveContainer, which re-signs it.
+
+# 每次运行都重新读取上游最新正式 Release，并构建该次检测到的标签。
+# 同版本仍然重建并覆盖 IPA；新版本创建独立的 ios-<上游标签> Release。
+# IPA 保持未签名，供 LiveContainer 安装时重新签名。
 on:
   schedule:
-    - cron: '23 */3 * * *'   # every 3 hours, off the hour (scheduled runs may be delayed)
+    - cron: '23 */3 * * *' # UTC 每 3 小时；避开整点，实际触发可能延迟。
   workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Upstream tag to build (empty = auto-detect new releases)'
-        required: false
-        default: ''
-      force:
-        description: 'Rebuild even if ios-<tag> exists, replacing the .ipa (latest release if no tag is given)'
-        type: boolean
-        default: false
-      max_builds:
-        description: 'Auto mode: how many of the newest upstream releases to look at'
-        required: false
-        default: '3'
 
 permissions:
   contents: write
@@ -31,126 +16,150 @@ concurrency:
   group: ios-sync
   cancel-in-progress: false
 
+env:
+  UPSTREAM_REPO: openOMSI-Project/openOMSI
+  RUSTUP_TOOLCHAIN: stable
+
 jobs:
   check:
     runs-on: ubuntu-latest
     outputs:
-      matrix: ${{ steps.detect.outputs.matrix }}
-      has_work: ${{ steps.detect.outputs.has_work }}
+      utag: ${{ steps.detect.outputs.utag }}
+      iostag: ${{ steps.detect.outputs.iostag }}
     steps:
-      - name: Determine the upstream releases to build
+      - name: 检测上游最新正式版本
         id: detect
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
-          INPUT_TAG: ${{ inputs.tag }}
-          INPUT_FORCE: ${{ inputs.force }}
-          INPUT_MAX: ${{ inputs.max_builds }}
         run: |
-          set -eu
-          MAX="${INPUT_MAX:-3}"
-          case "$MAX" in ''|*[!0-9]*) MAX=3 ;; esac
+          set -euo pipefail
+          RELEASE="$(gh api "repos/$UPSTREAM_REPO/releases/latest")"
+          UTAG="$(jq -er '
+            select(.draft == false and .prerelease == false)
+            | .tag_name
+            | select(type == "string" and length > 0)
+          ' <<< "$RELEASE")"
 
-          # Published (non-draft, non-prerelease) upstream releases, newest first.
-          ALL="$(gh api "repos/openOMSI-Project/openOMSI/releases?per_page=50" \
-                   --jq '.[] | select(.draft == false and .prerelease == false) | .tag_name')"
-          if [ -z "$ALL" ]; then
-            echo "::error::Unable to determine the upstream release tags."
+          # 标签同时用于 Git ref、文件名和 Release URL；不允许路径分隔符。
+          if [[ ! "$UTAG" =~ ^[A-Za-z0-9][A-Za-z0-9._+-]*$ ]]; then
+            echo "::error::上游标签不能安全用于 IPA 文件名：$UTAG"
             exit 1
           fi
-          LATEST="$(echo "$ALL" | head -n1)"
-          echo "Latest upstream release: $LATEST"
+          git check-ref-format "refs/tags/$UTAG"
 
-          if [ -n "${INPUT_TAG:-}" ]; then
-            CANDIDATES="$INPUT_TAG"
-          elif [ "${INPUT_FORCE:-false}" = "true" ]; then
-            CANDIDATES="$LATEST"
-          else
-            CANDIDATES="$(echo "$ALL" | head -n "$MAX")"
-          fi
-
-          MATRIX='[]'
-          for t in $CANDIDATES; do
-            if [ "${INPUT_FORCE:-false}" != "true" ] && gh release view "ios-$t" >/dev/null 2>&1; then
-              # newest-first: once a release is already built, everything older is handled
-              echo "ios-$t already exists; stopping here (older releases are not back-filled)"
-              break
-            fi
-            IS_LATEST=false
-            if [ "$t" = "$LATEST" ]; then IS_LATEST=true; fi
-            echo "build $t (latest=$IS_LATEST)"
-            MATRIX="$(jq -c --arg t "$t" --argjson l "$IS_LATEST" \
-                        '. + [{utag:$t, iostag:("ios-" + $t), latest:$l}]' <<<"$MATRIX")"
-          done
-
-          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
-          if [ "$MATRIX" = "[]" ]; then
-            echo "has_work=false" >> "$GITHUB_OUTPUT"
-            echo "Nothing new to build."
-          else
-            echo "has_work=true" >> "$GITHUB_OUTPUT"
-          fi
+          IOSTAG="ios-$UTAG"
+          echo "utag=$UTAG" >> "$GITHUB_OUTPUT"
+          echo "iostag=$IOSTAG" >> "$GITHUB_OUTPUT"
+          echo "本次构建：$UPSTREAM_REPO@$UTAG -> $IOSTAG"
+          {
+            echo "### 本次 iOS 构建"
+            echo "- 上游正式版：[$UTAG](https://github.com/$UPSTREAM_REPO/releases/tag/$UTAG)"
+            echo "- iOS 发布标签：\`$IOSTAG\`"
+            echo "- 即使该版本已发布，仍重新构建并覆盖 IPA。"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   build:
     needs: check
-    if: needs.check.outputs.has_work == 'true'
     runs-on: macos-15
-    strategy:
-      fail-fast: false   # one release failing to patch must not stop the others
-      matrix:
-        include: ${{ fromJSON(needs.check.outputs.matrix) }}
     steps:
-      - uses: actions/checkout@v4
+      - name: 获取 iOS 移植文件
+        uses: actions/checkout@v4
 
-      - name: Clone the upstream release and apply the iOS port
+      - name: 克隆本次检测到的上游版本
+        shell: bash
         env:
-          UTAG: ${{ matrix.utag }}
+          UTAG: ${{ needs.check.outputs.utag }}
         run: |
-          set -eu
-          git clone --depth 1 --branch "$UTAG" \
-            https://github.com/openOMSI-Project/openOMSI.git upstream
+          set -euo pipefail
+          git clone --depth 1 --branch "$UTAG" --single-branch \
+            "https://github.com/$UPSTREAM_REPO.git" upstream
+          TAG_SHA="$(git -C upstream rev-parse "refs/tags/$UTAG^{commit}")"
+          HEAD_SHA="$(git -C upstream rev-parse HEAD)"
+          if [ "$TAG_SHA" != "$HEAD_SHA" ]; then
+            echo "::error::上游检出提交与所选 Release 标签不一致。"
+            exit 1
+          fi
+          echo "已检出上游 $UTAG ($HEAD_SHA)"
+          echo "- 上游源码提交：\`$HEAD_SHA\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 应用 iOS 覆盖文件及兼容补丁
+        shell: bash
+        run: |
+          set -euo pipefail
           cp -R ios upstream/ios
-          chmod +x upstream/ios/sync.sh
-          (cd upstream && sh ios/sync.sh)
+          # 保留严格失败行为；日志显示具体失败的补丁，不回退到旧版本。
+          (cd upstream && sh -x ios/sync.sh)
 
-      - name: Add the iOS Rust target / select Xcode
+      - name: 准备 Rust iOS 目标并检查 Xcode
+        shell: bash
         run: |
-          sudo xcode-select -s /Applications/Xcode_*.app/Contents/Developer || true
-          rustup target add aarch64-apple-ios
+          set -euo pipefail
+          export PATH="$HOME/.cargo/bin:$PATH"
+          rustup toolchain install stable --profile minimal --target aarch64-apple-ios
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          DEVELOPER_DIR="$(xcode-select -p)"
+          test -d "$DEVELOPER_DIR"
+          export DEVELOPER_DIR
+          echo "DEVELOPER_DIR=$DEVELOPER_DIR" >> "$GITHUB_ENV"
           rustc --version
+          cargo --version
           xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
 
-      - name: Build the unsigned .ipa
+      - name: 构建未签名 IPA
         working-directory: upstream
+        shell: bash
         env:
-          OPENOMSI_VERSION: ${{ matrix.utag }}
+          OPENOMSI_VERSION: ${{ needs.check.outputs.utag }}
         run: |
-          set -eu
+          set -euo pipefail
           chmod +x scripts/build-ios.sh scripts/ios-make-ipa.sh
           sh scripts/ios-make-ipa.sh
 
-      - name: Publish the release
+      - name: 发布或更新对应版本的 Release
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          UTAG: ${{ matrix.utag }}
-          IOSTAG: ${{ matrix.iostag }}
-          IS_LATEST: ${{ matrix.latest }}
+          UTAG: ${{ needs.check.outputs.utag }}
+          IOSTAG: ${{ needs.check.outputs.iostag }}
         run: |
-          set -eu
+          set -euo pipefail
           IPA="upstream/dist/ios/openOMSI-${UTAG}-ios-arm64.ipa"
-          [ -f "$IPA" ] || { echo "missing $IPA"; ls -l upstream/dist/ios; exit 1; }
+          if [ ! -s "$IPA" ]; then
+            echo "::error::未生成有效的 IPA：$IPA"
+            ls -l upstream/dist/ios
+            exit 1
+          fi
 
           NOTES="Unofficial iOS build of openOMSI ${UTAG}, produced automatically.
           - **Unsigned** .ipa: install with **LiveContainer** (it re-signs with your own certificate).
           - Import the OMSI 2 content folder via the Files app; see \`docs/IOS.md\`.
-          - Upstream release: https://github.com/openOMSI-Project/openOMSI/releases/tag/${UTAG}"
+          - Upstream release: https://github.com/${UPSTREAM_REPO}/releases/tag/${UTAG}"
 
-          if gh release view "$IOSTAG" >/dev/null 2>&1; then
-            gh release upload "$IOSTAG" "$IPA" --clobber
-            gh release edit "$IOSTAG" --notes "$NOTES"
-          else
-            gh release create "$IOSTAG" "$IPA" \
-              --title "openOMSI for iOS ($UTAG)" \
-              --notes "$NOTES" \
-              --latest="$IS_LATEST"
-          fi
+          # 只有 404 才创建 Release；权限、限流或服务错误不能当作“未发布”。
+          STATUS="$(curl --silent --show-error --retry 3 \
+            --output "$RUNNER_TEMP/ios-release.json" --write-out "%{http_code}" \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header "Accept: application/vnd.github+json" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/releases/tags/$IOSTAG")"
+          case "$STATUS" in
+            200)
+              gh release upload "$IOSTAG" "$IPA" --repo "$GITHUB_REPOSITORY" --clobber
+              gh release edit "$IOSTAG" --repo "$GITHUB_REPOSITORY" --notes "$NOTES"
+              ;;
+            404)
+              gh release create "$IOSTAG" "$IPA" --repo "$GITHUB_REPOSITORY" \
+                --target "$GITHUB_SHA" --title "openOMSI for iOS ($UTAG)" --notes "$NOTES"
+              ;;
+            *)
+              echo "::error::查询 iOS Release 失败（HTTP $STATUS），停止发布。"
+              exit 1
+              ;;
+          esac
+          {
+            echo "### 发布完成"
+            echo "- [openOMSI for iOS ($UTAG)](https://github.com/$GITHUB_REPOSITORY/releases/tag/$IOSTAG)"
+            echo "- IPA：\`openOMSI-${UTAG}-ios-arm64.ipa\`（未签名）"
+          } >> "$GITHUB_STEP_SUMMARY"
