@@ -1,13 +1,27 @@
 name: iOS sync & build
-# Build the latest published upstream release for iOS:
-#   - `check` reads the current latest upstream release tag.
-#   - `build` always builds that exact tag and publishes the unsigned .ipa,
+# Build every new upstream release for iOS:
+#   - `check` reads the newest published upstream releases and picks every one that is
+#     newer than the last one already built here (an `ios-<tag>` release exists = built).
+#   - `build` builds each picked tag in parallel and publishes the unsigned .ipa,
 #     replacing the existing asset when the release already exists.
 # The .ipa is unsigned: install it with LiveContainer, which re-signs it.
 on:
   schedule:
-    - cron: '23 */6 * * *'   # every 6 hours, off the hour (scheduled runs may be delayed)
+    - cron: '23 */3 * * *'   # every 3 hours, off the hour (scheduled runs may be delayed)
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Upstream tag to build (empty = auto-detect new releases)'
+        required: false
+        default: ''
+      force:
+        description: 'Rebuild even if ios-<tag> exists, replacing the .ipa (latest release if no tag is given)'
+        type: boolean
+        default: false
+      max_builds:
+        description: 'Auto mode: how many of the newest upstream releases to look at'
+        required: false
+        default: '3'
 
 permissions:
   contents: write
@@ -21,37 +35,76 @@ jobs:
   check:
     runs-on: ubuntu-latest
     outputs:
-      utag: ${{ steps.detect.outputs.utag }}
-      iostag: ${{ steps.detect.outputs.iostag }}
+      matrix: ${{ steps.detect.outputs.matrix }}
+      has_work: ${{ steps.detect.outputs.has_work }}
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Determine the upstream release to build
+      - name: Determine the upstream releases to build
         id: detect
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          INPUT_TAG: ${{ inputs.tag }}
+          INPUT_FORCE: ${{ inputs.force }}
+          INPUT_MAX: ${{ inputs.max_builds }}
         run: |
           set -eu
-          UTAG="$(gh api repos/openOMSI-Project/openOMSI/releases/latest --jq '.tag_name // empty')"
-          if [ -z "$UTAG" ]; then
-            echo "::error::Unable to determine the latest upstream release tag."
+          MAX="${INPUT_MAX:-3}"
+          case "$MAX" in ''|*[!0-9]*) MAX=3 ;; esac
+
+          # Published (non-draft, non-prerelease) upstream releases, newest first.
+          ALL="$(gh api "repos/openOMSI-Project/openOMSI/releases?per_page=50" \
+                   --jq '.[] | select(.draft == false and .prerelease == false) | .tag_name')"
+          if [ -z "$ALL" ]; then
+            echo "::error::Unable to determine the upstream release tags."
             exit 1
           fi
+          LATEST="$(echo "$ALL" | head -n1)"
+          echo "Latest upstream release: $LATEST"
 
-          IOSTAG="ios-$UTAG"
-          echo "utag=$UTAG" >> "$GITHUB_OUTPUT"
-          echo "iostag=$IOSTAG" >> "$GITHUB_OUTPUT"
-          echo "Latest upstream release: $UTAG -> $IOSTAG"
+          if [ -n "${INPUT_TAG:-}" ]; then
+            CANDIDATES="$INPUT_TAG"
+          elif [ "${INPUT_FORCE:-false}" = "true" ]; then
+            CANDIDATES="$LATEST"
+          else
+            CANDIDATES="$(echo "$ALL" | head -n "$MAX")"
+          fi
+
+          MATRIX='[]'
+          for t in $CANDIDATES; do
+            if [ "${INPUT_FORCE:-false}" != "true" ] && gh release view "ios-$t" >/dev/null 2>&1; then
+              # newest-first: once a release is already built, everything older is handled
+              echo "ios-$t already exists; stopping here (older releases are not back-filled)"
+              break
+            fi
+            IS_LATEST=false
+            if [ "$t" = "$LATEST" ]; then IS_LATEST=true; fi
+            echo "build $t (latest=$IS_LATEST)"
+            MATRIX="$(jq -c --arg t "$t" --argjson l "$IS_LATEST" \
+                        '. + [{utag:$t, iostag:("ios-" + $t), latest:$l}]' <<<"$MATRIX")"
+          done
+
+          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+          if [ "$MATRIX" = "[]" ]; then
+            echo "has_work=false" >> "$GITHUB_OUTPUT"
+            echo "Nothing new to build."
+          else
+            echo "has_work=true" >> "$GITHUB_OUTPUT"
+          fi
 
   build:
     needs: check
+    if: needs.check.outputs.has_work == 'true'
     runs-on: macos-15
+    strategy:
+      fail-fast: false   # one release failing to patch must not stop the others
+      matrix:
+        include: ${{ fromJSON(needs.check.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Clone the upstream release and apply the iOS port
         env:
-          UTAG: ${{ needs.check.outputs.utag }}
+          UTAG: ${{ matrix.utag }}
         run: |
           set -eu
           git clone --depth 1 --branch "$UTAG" \
@@ -70,7 +123,7 @@ jobs:
       - name: Build the unsigned .ipa
         working-directory: upstream
         env:
-          OPENOMSI_VERSION: ${{ needs.check.outputs.utag }}
+          OPENOMSI_VERSION: ${{ matrix.utag }}
         run: |
           set -eu
           chmod +x scripts/build-ios.sh scripts/ios-make-ipa.sh
@@ -79,8 +132,9 @@ jobs:
       - name: Publish the release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          UTAG: ${{ needs.check.outputs.utag }}
-          IOSTAG: ${{ needs.check.outputs.iostag }}
+          UTAG: ${{ matrix.utag }}
+          IOSTAG: ${{ matrix.iostag }}
+          IS_LATEST: ${{ matrix.latest }}
         run: |
           set -eu
           IPA="upstream/dist/ios/openOMSI-${UTAG}-ios-arm64.ipa"
@@ -95,5 +149,8 @@ jobs:
             gh release upload "$IOSTAG" "$IPA" --clobber
             gh release edit "$IOSTAG" --notes "$NOTES"
           else
-            gh release create "$IOSTAG" "$IPA" --title "openOMSI for iOS ($UTAG)" --notes "$NOTES"
+            gh release create "$IOSTAG" "$IPA" \
+              --title "openOMSI for iOS ($UTAG)" \
+              --notes "$NOTES" \
+              --latest="$IS_LATEST"
           fi
