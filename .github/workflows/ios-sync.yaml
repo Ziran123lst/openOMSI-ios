@@ -119,9 +119,9 @@ jobs:
           [ -f "$IPA" ] || { echo "missing $IPA"; ls -l upstream/dist/ios; exit 1; }
 
           NOTES="Unofficial iOS build of openOMSI ${UTAG}, produced automatically.
-- **Unsigned** .ipa: install with **LiveContainer** (it re-signs with your own certificate).
-- Import the OMSI 2 content folder via the Files app; see \`docs/IOS.md\`.
-- Upstream release: https://github.com/openOMSI-Project/openOMSI/releases/tag/${UTAG}"
+          - **Unsigned** .ipa: install with **LiveContainer** (it re-signs with your own certificate).
+          - Import the OMSI 2 content folder via the Files app; see \`docs/IOS.md\`.
+          - Upstream release: https://github.com/openOMSI-Project/openOMSI/releases/tag/${UTAG}"
 
           if gh release view "$IOSTAG" >/dev/null 2>&1; then
             gh release upload "$IOSTAG" "$IPA" --clobber
