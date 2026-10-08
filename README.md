@@ -1,9 +1,7 @@
 # openOMSI iOS (unofficial)
 
 An iOS port of [openOMSI](https://github.com/openOMSI-Project/openOMSI) — the Rust
-rewrite of the OMSI 2 bus simulator. It renders with Metal, runs in one process, and the
-build below follows the official releases automatically.
-
+rewrite of the OMSI 2 bus simulator. It renders with Metal.
 ## Install (no jailbreak)
 
 1. Install **LiveContainer** (SideStore/AltStore), then open the newest
@@ -13,17 +11,6 @@ build below follows the official releases automatically.
    Files app, then pick it in the app under Setup. See [`docs/IOS.md`](docs/IOS.md).
 
 The `.ipa` is unsigned by design: LiveContainer applies the signature.
-
-## How the automatic updates work
-
-`.github/workflows/ios-sync.yml` runs every 6 hours (and on demand):
-
-1. `check` finds the newest upstream tag and skips releases already built.
-2. `build` clones that upstream tag, applies the port in `ios/`, builds the `.ipa` with
-   Xcode, and publishes it on `ios-<upstream tag>`.
-
-You can also run it manually: **Actions → iOS sync & build → Run workflow**, optionally
-giving a specific upstream tag.
 
 ## Repository layout
 
